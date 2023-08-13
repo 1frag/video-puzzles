@@ -11,6 +11,12 @@
             background-color: #93959722;
         }
     </style>
+    <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+            integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+            crossorigin="anonymous"
+    >
 </head>
 <body id="body">
 
@@ -34,15 +40,38 @@
 <div
     style="
         font-size: 50px;
-        text-align: center;
         z-index: 4294967296;
-        position: absolute;
-        left: 10%;
+        position: relative;
     "
     id="timer"
 >
     00:00
 </div>
+<button
+        style="
+            display: block;
+            z-index: 4294967296;
+            position: relative;
+        "
+        class="btn btn-secondary"
+        type="button"
+        id="try-again"
+        onclick="repeat()"
+        hidden
+>Попробовать еще раз</button>
+<button
+        style="
+            display: block;
+            z-index: 4294967296;
+            position: relative;
+        "
+        class="btn btn-secondary"
+        type="button"
+        id="add-in-leaderboard"
+        hidden
+        disabled
+>Зарегистрировать результат</button>
+
 <script src="./timer.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
@@ -147,6 +176,12 @@
         for (let i = 1; i <= PUZZLE_COUNT; i++) {
             const element = idToElement(i);
             dragElement(element);
+        }
+        shufflePuzzles();
+    }
+
+    function shufflePuzzles() {
+        for (const element of rangeDivs()) {
             const {x, y} = randomPosition();
             element.style.left = x + 'px';
             element.style.top = y + 'px';
@@ -171,6 +206,23 @@
         VideoController.init();
         VideoController.play();
         timerController.init();
+    }
+
+    function repeat() {
+        game.init();
+        VideoController.init();
+        VideoController.play();
+        timerController.init();
+        document.getElementById('try-again').hidden = true;
+        document.getElementById('add-in-leaderboard').hidden = true;
+        shufflePuzzles();
+    }
+
+    function finish() {
+        timerController.stop();
+        new JSConfetti().addConfetti();
+        document.getElementById('try-again').hidden = false;
+        document.getElementById('add-in-leaderboard').hidden = false;
     }
 
     class VideoController {
@@ -325,8 +377,7 @@
             assembling(first, second);
             normalize(first, [...game.dsu.getSet(getId(first))]);
             if (game.dsu.isSingle()) {
-                timerController.stop();
-                new JSConfetti().addConfetti();
+                finish();
             }
         }
     }
