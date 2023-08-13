@@ -7,6 +7,9 @@
         .puzzle {
             position: absolute;
         }
+        body {
+            background-color: #93959722;
+        }
     </style>
 </head>
 <body id="body">
@@ -27,6 +30,20 @@
 " onclick="start()" id="start">
     Start
 </button>
+
+<div
+    style="
+        font-size: 50px;
+        text-align: center;
+        z-index: 4294967296;
+        position: absolute;
+        left: 10%;
+    "
+    id="timer"
+>
+    00:00
+</div>
+<script src="./timer.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
         integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ=="
@@ -153,6 +170,7 @@
         game.init();
         VideoController.init();
         VideoController.play();
+        timerController.init();
     }
 
     class VideoController {
@@ -176,7 +194,7 @@
         }
     }
 
-    setInterval(() => VideoController.init(), 60_000);
+    setInterval(() => VideoController.init(), 5000);
 
     function pxToNumber(px) {
         return Number(px.replace('px', ''));
@@ -307,6 +325,7 @@
             assembling(first, second);
             normalize(first, [...game.dsu.getSet(getId(first))]);
             if (game.dsu.isSingle()) {
+                timerController.stop();
                 new JSConfetti().addConfetti();
             }
         }
@@ -340,6 +359,20 @@
         const firstId = getId(first);
         const secondId = getId(second);
         game.dsu.unionSets(firstId, secondId);
+    }
+
+    function __solve () {
+        let x = 0;
+        let y = 0;
+        for (const element of rangeDivs()) {
+            element.style.left = x + 'px';
+            element.style.top = y + 120 + 'px';
+            y += PUZZLE_HEIGHT;
+            if (y >= PUZZLE_HEIGHT * Y_PARTS) {
+                x += PUZZLE_WIDTH;
+                y %= PUZZLE_HEIGHT * Y_PARTS;
+            }
+        }
     }
 </script>
 
