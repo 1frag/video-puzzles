@@ -46,4 +46,8 @@ class DSU {
             }
         }
     }
+
+    isSingle () {
+        return [...this.getSet(1)].length === this.n;
+    }
 }

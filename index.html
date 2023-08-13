@@ -37,6 +37,7 @@
 <script src="./dsu.js"></script>
 <script src="./drag-n-drop.js"></script>
 <script src="./data/2/puzzle-metadata.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 
 <script>
     const {times} = _;
@@ -305,6 +306,9 @@
         if (assembled) {
             assembling(first, second);
             normalize(first, [...game.dsu.getSet(getId(first))]);
+            if (game.dsu.isSingle()) {
+                new JSConfetti().addConfetti();
+            }
         }
     }
 
