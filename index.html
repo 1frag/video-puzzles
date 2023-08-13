@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Puzzles MVP</title>
+    <style>
+        .puzzle {
+            position: absolute;
+        }
+    </style>
+</head>
+<body id="body">
+
+<div id="field" style="height: 400px; width: 400px; border: 1px solid black">
+</div>
+
+<button style="
+    margin: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    height: 80px;
+    width: 200px;
+    font-size: 20px;
+" onclick="start()" id="start">
+    Start
+</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+        integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"
+        integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
+        crossorigin="anonymous"></script>
+<script src="./dsu.js"></script>
+<script src="./drag-n-drop.js"></script>
+<script src="./data/2/puzzle-metadata.js"></script>
+
+<script>
+    const {times} = _;
+
+    const PUZZLE_COUNT = 32;
+    const PUZZLE_WIDTH = 160;
+    const X_PARTS = 8;
+    const Y_PARTS = 4;
+    const ASSEMBLING_ONLY_IN_FIELD = false;
+    let MAX_DIST_TO_TOUCH = 10;
+
+    // v1.0
+    // const FILENAME_PREFIX = './data/1/mp4/out-';
+    // const FILENAME_EXT = 'mp4';
+    // const PUZZLE_HEIGHT = 180;
+    // v2.0
+    const FILENAME_PREFIX = './data/2/masked/out-';
+    const FILENAME_EXT = 'webm';
+    const PUZZLE_HEIGHT = 180;
+
+    let CURRENT_Z_INDEX = 0;
+
+    const body = document.getElementById('body');
+
+    function range() {
+        return times(PUZZLE_COUNT).map(v => v + 1);
+    }
+
+    function rangeToObject(routine) {
+        return Object.fromEntries(range().map(v => [v, routine(v)]));
+    }
+
+    function idToElement(i) {
+        return document.getElementById(`out${i}`);
+    }
+
+    function rangeDivs() {
+        return range().map(v => idToElement(v));
+    }
+
+    function randomPosition() {
+        const w = document.documentElement.clientWidth;
+        const h = document.documentElement.clientHeight;
+        return {
+            x: Math.random() * (w / 1.3),
+            y: Math.random() * (h / 5) + (Y_PARTS * PUZZLE_HEIGHT),
+        };
+    }
+
+    function getPosition(i) {
+        if (typeof i === 'number') {
+            return [Math.floor((i - 1) / 4) + 1, ((i - 1) % 4) + 1];
+        } else {
+            return getPosition(getId(i));
+        }
+    }
+
+    class Game {
+        /** @type {Object<string, HTMLElement>} */
+        idToElement;
+        /** @type {DSU} */
+        dsu;
+
+        init() {
+            this.idToElement = rangeToObject(v => idToElement(v));
+            this.dsu = new DSU(PUZZLE_COUNT);
+        }
+    }
+
+    const game = new Game();
+
+    function addPuzzles() {
+        const puzzles = [];
+        for (let i = 1; i <= PUZZLE_COUNT; i++) {
+            puzzles.push(
+                `<div
+                    id="out${i}"
+                    class="puzzle"
+                >
+                    <video
+                        src="${FILENAME_PREFIX}${i}.${FILENAME_EXT}"
+                        autoplay
+                        loop
+                        class="p-video"
+                    ></video>
+                </div>`
+            );
+        }
+        body.innerHTML += puzzles.join('\n');
+        for (let i = 1; i <= PUZZLE_COUNT; i++) {
+            const element = idToElement(i);
+            dragElement(element);
+            const {x, y} = randomPosition();
+            element.style.left = x + 'px';
+            element.style.top = y + 'px';
+        }
+    }
+
+    window.onload = function () {
+        const field = document.getElementById('field');
+
+        if (ASSEMBLING_ONLY_IN_FIELD) {
+            field.style.width = X_PARTS * PUZZLE_WIDTH + 'px';
+            field.style.height = Y_PARTS * PUZZLE_HEIGHT + 'px';
+        } else {
+            field.remove();
+        }
+    }
+
+    function start() {
+        document.getElementById('start').remove();
+        addPuzzles();
+        game.init();
+        VideoController.init();
+        VideoController.play();
+    }
+
+    class VideoController {
+        static apply(routine) {
+            return Array.from(document.getElementsByTagName('video'))
+                .forEach(video => routine(video));
+        }
+
+        static init() {
+            this.apply(video => {
+                video.currentTime = 0;
+            });
+        }
+
+        static pause() {
+            this.apply(video => video.pause());
+        }
+
+        static play() {
+            this.apply(video => video.play());
+        }
+    }
+
+    setInterval(() => VideoController.init(), 60_000);
+
+    function pxToNumber(px) {
+        return Number(px.replace('px', ''));
+    }
+
+    function getId(element) {
+        return Number(element.id.replace('out', ''));
+    }
+
+    function getUnited(element) {
+        return [...game.dsu.getSet(getId(element))].map(id => game.idToElement[id]);
+    }
+
+    function leftTop(element) {
+        const id = getId(element);
+        const corner = PUZZLE_METADATA.relative_corners[id].top_left || [0, 0];
+        const pos = elementPosition(element);
+        return [pos.x1 + corner[0], pos.y1 + corner[1]];
+    }
+
+    function leftBottom(element) {
+        const id = getId(element);
+        const corner = PUZZLE_METADATA.relative_corners[id].bottom_left || [0, 0];
+        const pos = elementPosition(element);
+        return [pos.x1 + corner[0], pos.y1 + corner[1]];
+    }
+
+    function rightTop(element) {
+        const id = getId(element);
+        const corner = PUZZLE_METADATA.relative_corners[id].top_right || [0, 0];
+        const pos = elementPosition(element);
+        return [pos.x1 + corner[0], pos.y1 + corner[1]];
+    }
+
+    function rightBottom(element) {
+        const id = getId(element);
+        const corner = PUZZLE_METADATA.relative_corners[id].bottom_right || [0, 0];
+        const pos = elementPosition(element);
+        return [pos.x1 + corner[0], pos.y1 + corner[1]];
+    }
+
+    function getTouch(first, second) {
+        const firstPosition = getPosition(first);
+        const secondPosition = getPosition(second);
+        /**
+         * (1,1) .__.
+         * ._.  |=2| (2,1)
+         * |_|  |__|
+         */
+        if (firstPosition[0] + 1 === secondPosition[0] && firstPosition[1] === secondPosition[1]) {
+            return [
+                [rightTop(first), leftTop(second)],
+                [rightBottom(first), leftBottom(second)],
+            ];
+        }
+        /**
+         * .__
+         * |1| (1,1)
+         * |_|
+         * .__
+         * |2| (1,2)
+         * |_|
+         */
+        if ((firstPosition[0] === secondPosition[0]) && firstPosition[1] + 1 === secondPosition[1]) {
+            return [
+                [leftBottom(first), leftTop(second)],
+                [rightBottom(first), rightTop(second)],
+            ];
+        }
+        return null;
+    }
+
+    function isInField(element) {
+        const field = document.getElementById('field');
+
+        const {x1, y1, x2, y2} = elementPosition(element);
+        const filedPosition = elementPosition(field);
+        return (
+            pointInRect(filedPosition, {x: x1, y: y1}) &&
+            pointInRect(filedPosition, {x: x2, y: y2})
+        );
+    }
+
+    function checkIfAssembled(element) {
+        if (ASSEMBLING_ONLY_IN_FIELD && !isInField(element)) {
+            return;
+        }
+        const touchedIds = new Set([...game.dsu.getSet(getId(element))]);
+        for (const touchedDiv of [...touchedIds].map(id => game.idToElement[id])) {
+            for (const anotherDiv of rangeDivs()) {
+                if (touchedIds.has(getId(anotherDiv))) {
+                    continue;
+                }
+                const touch1 = getTouch(touchedDiv, anotherDiv);
+                const touch2 = getTouch(anotherDiv, touchedDiv);
+                if (touch1) applyTouch(touch1, touchedDiv, anotherDiv);
+                if (touch2) applyTouch(touch2, anotherDiv, touchedDiv);
+            }
+        }
+    }
+
+    function normalize(first, group) {
+        const firstPosition = getPosition(first);
+        const firstOffset = PUZZLE_METADATA.relative_corners[getId(first)].top_left;
+        for (const element of group.map(idToElement)) {
+            const elementPosition = getPosition(element);
+            const currentOffset = PUZZLE_METADATA.relative_corners[getId(element)].top_left;
+
+            const dx = elementPosition[0] - firstPosition[0];
+            element.style.left = (pxToNumber(first.style.left) + firstOffset[0] + dx * PUZZLE_WIDTH - currentOffset[0]) + 'px';
+
+            const dy = elementPosition[1] - firstPosition[1];
+            element.style.top = (pxToNumber(first.style.top) + firstOffset[1] + dy * PUZZLE_HEIGHT - currentOffset[1]) + 'px';
+        }
+    }
+
+    function applyTouch(touch, first, second) {
+        if (!touch) {
+            return;
+        }
+        let assembled = true;
+        for (const [point1, point2] of touch) {
+            if (getDist(point1, point2) > MAX_DIST_TO_TOUCH) {
+                assembled = false;
+            }
+        }
+        if (assembled) {
+            assembling(first, second);
+            normalize(first, [...game.dsu.getSet(getId(first))]);
+        }
+    }
+
+    function elementPosition(element) {
+        const x1 = pxToNumber(element.style.left);
+        const y1 = pxToNumber(element.style.top);
+        return {
+            x1,
+            y1,
+            x2: x1 + (element.clientWidth || pxToNumber(element.style.width)),
+            y2: y1 + (element.clientHeight || pxToNumber(element.style.height)),
+        };
+    }
+
+    function pointInRect(rect, point) {
+        return !(
+            point.x < rect.x1 ||
+            point.x > rect.x2 ||
+            point.y < rect.y1 ||
+            point.y > rect.y2
+        );
+    }
+
+    function getDist(point1, point2) {
+        return Math.abs(point1[0] - point2[0]) + Math.abs(point1[1] - point2[1]);
+    }
+
+    function assembling(first, second) {
+        const firstId = getId(first);
+        const secondId = getId(second);
+        game.dsu.unionSets(firstId, secondId);
+    }
+</script>
+
+</body>
+</html>
