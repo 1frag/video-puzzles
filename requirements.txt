@@ -1,1 +1,6 @@
 PyPNG==0.20220715.0
+google-api-python-client==2.96.0
+google-auth-oauthlib==1.0.0
+fastapi==0.101.0
+uvicorn==0.23.2
+gunicorn==21.2.0

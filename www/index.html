@@ -68,8 +68,8 @@
         class="btn btn-secondary"
         type="button"
         id="add-in-leaderboard"
+        onclick="publishResult()"
         hidden
-        disabled
 >Зарегистрировать результат</button>
 
 <script src="timer.js"></script>
@@ -223,6 +223,10 @@
         new JSConfetti().addConfetti();
         document.getElementById('try-again').hidden = false;
         document.getElementById('add-in-leaderboard').hidden = false;
+    }
+
+    function publishResult() {
+
     }
 
     class VideoController {

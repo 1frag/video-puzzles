@@ -1,0 +1,22 @@
+version: '3.7'
+
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - vp_postgres:/var/lib/postgresql/data
+
+  api:
+    build: .
+    ports:
+      - "8001:8000"
+    environment:
+      - DEBUG=1
+      - POSTGRES__DSN=postgresql://postgres@postgres/postgres
+
+volumes:
+  vp_postgres:
