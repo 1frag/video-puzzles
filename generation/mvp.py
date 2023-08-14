@@ -3,8 +3,8 @@ import ffmpeg_utils
 
 def to_gif(i):
     ffmpeg_utils.to_gif(
-        input_file=f'data/1/mp4/out-{i}.mp4',
-        output_file=f'data/1/gif/out-{i}.gif',
+        input_file=f'../www/data/1/mp4/out-{i}.mp4',
+        output_file=f'../www/data/1/gif/out-{i}.gif',
     )
 
 
@@ -14,8 +14,8 @@ def crop(w, h, x, y, i):
         height=h,
         left=x,
         top=y,
-        input_file='1.mp4',
-        output_file=f'data/1/mp4/out-{i}.mp4',
+        input_file='../1.mp4',
+        output_file=f'../www/data/1/mp4/out-{i}.mp4',
     )
 
 

@@ -105,7 +105,7 @@ class MaskAlgo:
             parts_x=8,
             parts_y=4,
             settings=Settings(
-                input_file='./1.mp4',
+                input_file='../1.mp4',
                 radius=20,
             ),
         )
@@ -282,7 +282,7 @@ def save_mask(border: Border) -> str:
                 stack.append((nx, ny))
                 pixels[ny][nx][3] = 255
 
-    mask_file = f'./data/2/masks/{border.ident}.png'
+    mask_file = f'../www/data/2/masks/{border.ident}.png'
     with open(mask_file, 'wb') as f:
         w = png.Writer(width, height, greyscale=False, alpha=True)
         w.write(f, [itertools.chain(*row) for row in pixels])
@@ -290,7 +290,7 @@ def save_mask(border: Border) -> str:
 
 
 def save_cropped(border: Border, input_file: str) -> str:
-    output_file = f'./data/2/cropped/{border.ident}.mp4'
+    output_file = f'../www/data/2/cropped/{border.ident}.mp4'
     ffmpeg_utils.crop(
         width=border.width,
         height=border.height,
@@ -306,7 +306,7 @@ def save_masked(mask_file: str, cropped_video: str, border: Border):
     ffmpeg_utils.apply_mask(
         video_file=cropped_video,
         mask_file=mask_file,
-        output_file=f'./data/2/masked/out-{border.number}.webm'
+        output_file=f'../www/data/2/masked/out-{border.number}.webm'
     )
 
 
@@ -338,8 +338,9 @@ def generate_borders():
             save_masked(mask_file, cropped_video, border)
             metadata['relative_corners'][border.number] = border.relative_corners
 
-    with open('data/2/puzzle-metadata.js', 'w') as fp:
-        json.dump(metadata, fp, indent=2)
+    with open('../www/data/2/puzzle-metadata.js', 'w') as fp:
+        fp.write('const PUZZLE_METADATA = ')
+        fp.write(json.dumps(metadata, indent=2))
 
 
 if __name__ == '__main__':
