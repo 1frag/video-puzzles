@@ -21,7 +21,7 @@ class Timer {
 
     getTime () {
         if (!this.endsAt) throw new Error();
-        return this.endsAt - this.startAt;
+        return Math.floor((this.endsAt - this.startAt) / 1000);
     }
 }
 

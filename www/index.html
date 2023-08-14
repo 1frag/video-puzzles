@@ -59,6 +59,19 @@
         onclick="repeat()"
         hidden
 >Попробовать еще раз</button>
+<input
+        type="text"
+        class="form-control"
+        id="input-for-name"
+        placeholder="Введите никнейм"
+        style="
+            display: block;
+            z-index: 4294967296;
+            position: relative;
+            width: 250px;
+        "
+        hidden
+>
 <button
         style="
             display: block;
@@ -71,6 +84,28 @@
         onclick="publishResult()"
         hidden
 >Зарегистрировать результат</button>
+<button
+        style="
+            display: block;
+            z-index: 4294967296;
+            position: relative;
+        "
+        class="btn btn-secondary"
+        type="button"
+        id="show-leaders"
+        onclick="showLeaders()"
+        hidden
+>Загрузить таблицу лидеров</button>
+<p
+    style="
+        display: block;
+        z-index: 4294967296;
+        position: relative;
+    "
+    id="leaders"
+    hidden
+>
+</p>
 
 <script src="timer.js"></script>
 
@@ -82,6 +117,8 @@
         crossorigin="anonymous"></script>
 <script src="dsu.js"></script>
 <script src="drag-n-drop.js"></script>
+<script src="http-client.js"></script>
+<script src="api.js"></script>
 <script src="data/2/puzzle-metadata.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 
@@ -215,6 +252,9 @@
         timerController.init();
         document.getElementById('try-again').hidden = true;
         document.getElementById('add-in-leaderboard').hidden = true;
+        document.getElementById('input-for-name').hidden = true;
+        document.getElementById('show-leaders').hidden = true;
+        document.getElementById('leaders').hidden = true;
         shufflePuzzles();
     }
 
@@ -223,10 +263,39 @@
         new JSConfetti().addConfetti();
         document.getElementById('try-again').hidden = false;
         document.getElementById('add-in-leaderboard').hidden = false;
+        document.getElementById('input-for-name').hidden = false;
+        document.getElementById('show-leaders').hidden = false;
+        document.getElementById('leaders').hidden = false;
     }
 
-    function publishResult() {
+    async function publishResult() {
+        const inputForName = document.getElementById('input-for-name');
+        const name = inputForName.value;
+        if (!name) {
+            inputForName.style.border = '1px solid red';
+            return;
+        }
+        inputForName.style.border = '';
+        inputForName.disable = true;
 
+        const url = await API.googleLogin();
+        window.open(url);
+        await new Promise(resolve => window.addEventListener('oauth-redirect', resolve));
+        await API.verifyGame(timerController.getTime(), name);
+        const addInLeaderboard = document.getElementById('add-in-leaderboard');
+        addInLeaderboard.innerText = 'Результат зарегистрирован';
+        addInLeaderboard.disabled = true;
+    }
+
+    async function showLeaders() {
+        const format = v => v.toString().padStart(2, '0');
+        const formatTime = secs => {
+            return `${format(Math.floor(secs / 60))}:${format(secs % 60)}`;
+        }
+        const leaders = await API.getLeaders('test');
+        document.getElementById('leaders').innerText = leaders
+            .map(leader => `${leader.name} - ${formatTime(leader.durationSecs)}`)
+            .join('\n');
     }
 
     class VideoController {

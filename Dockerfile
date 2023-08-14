@@ -12,6 +12,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY run_api.py /app/src
+COPY .env /app/src
 COPY api /app/src/api
 
 EXPOSE 8000
