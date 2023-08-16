@@ -2,7 +2,7 @@ import json
 
 from fastapi import APIRouter, Response
 
-from api.domain.jwt import create_access_token
+from api.domain.tokens import create_access_token
 from api.domain.models.next_action import NextAction
 from api.integrations.google import get_link_to_auth, get_access_token, get_user_info
 from api.integrations.postgres.users import add_user, update_google_email, get_user

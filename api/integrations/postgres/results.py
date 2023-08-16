@@ -3,6 +3,8 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from api.application.state import state
+from api.integrations.postgres.models.leader import Leader
+from api.integrations.postgres.models.puzzle import Puzzle
 
 
 async def add_result(
@@ -18,11 +20,6 @@ async def add_result(
         user_id,
         duration_secs,
     )
-
-
-class Leader(BaseModel):
-    name: str
-    duration_secs: int
 
 
 async def get_leaders(puzzle_id: str) -> list[Leader]:
@@ -41,5 +38,23 @@ async def get_leaders(puzzle_id: str) -> list[Leader]:
         Leader(
             name=row['name'],
             duration_secs=row['duration_secs'],
+        ) for row in rows
+    ]
+
+
+async def get_puzzles() -> list[Puzzle]:
+    rows = await state.get().pg_connection.fetch(
+        '''
+            SELECT *
+            FROM puzzles
+        ''',
+    )
+    return [
+        Puzzle(
+            id=row['id'],
+            name=row['name'],
+            preview=row['preview'],
+            metadata=row['metadata'],
+            duration_ms=row['duration_ms'],
         ) for row in rows
     ]

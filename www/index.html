@@ -7,8 +7,20 @@
         .puzzle {
             position: absolute;
         }
-        body {
-            background-color: #93959722;
+
+        .puzzle-item {
+            border: 2px;
+        }
+
+        .puzzle-item:hover {
+            border: solid #9395971a 1px;
+            background-color: #9395971a;
+        }
+
+        #preview {
+            position: absolute;
+            bottom: 0;
+            right: 0;
         }
     </style>
     <link
@@ -23,27 +35,19 @@
 <div id="field" style="height: 400px; width: 400px; border: 1px solid black">
 </div>
 
-<button style="
-    margin: auto;
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    height: 80px;
-    width: 200px;
-    font-size: 20px;
-" onclick="start()" id="start">
-    Start
-</button>
+<div class="container" id="container">
+    <div class="row" id="puzzles">
+    </div>
+</div>
 
 <div
-    style="
+        style="
         font-size: 50px;
         z-index: 4294967296;
         position: relative;
     "
-    id="timer"
+        id="timer"
+        hidden
 >
     00:00
 </div>
@@ -58,7 +62,8 @@
         id="try-again"
         onclick="repeat()"
         hidden
->Попробовать еще раз</button>
+>Попробовать еще раз
+</button>
 <input
         type="text"
         class="form-control"
@@ -83,7 +88,8 @@
         id="add-in-leaderboard"
         onclick="publishResult()"
         hidden
->Зарегистрировать результат</button>
+>Зарегистрировать результат
+</button>
 <button
         style="
             display: block;
@@ -95,17 +101,19 @@
         id="show-leaders"
         onclick="showLeaders()"
         hidden
->Загрузить таблицу лидеров</button>
+>Загрузить таблицу лидеров
+</button>
 <p
-    style="
+        style="
         display: block;
         z-index: 4294967296;
         position: relative;
     "
-    id="leaders"
-    hidden
+        id="leaders"
+        hidden
 >
 </p>
+<img id="preview" hidden>
 
 <script src="timer.js"></script>
 
@@ -119,27 +127,19 @@
 <script src="drag-n-drop.js"></script>
 <script src="http-client.js"></script>
 <script src="api.js"></script>
-<script src="data/2/puzzle-metadata.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 
 <script>
     const {times} = _;
 
     const PUZZLE_COUNT = 32;
-    const PUZZLE_WIDTH = 160;
     const X_PARTS = 8;
     const Y_PARTS = 4;
     const ASSEMBLING_ONLY_IN_FIELD = false;
     let MAX_DIST_TO_TOUCH = 10;
 
-    // v1.0
-    // const FILENAME_PREFIX = './data/1/mp4/out-';
-    // const FILENAME_EXT = 'mp4';
-    // const PUZZLE_HEIGHT = 180;
-    // v2.0
-    const FILENAME_PREFIX = './data/2/masked/out-';
     const FILENAME_EXT = 'webm';
-    const PUZZLE_HEIGHT = 180;
+    const ELEMENTS_STORAGE = {};
 
     let CURRENT_Z_INDEX = 0;
 
@@ -166,7 +166,7 @@
         const h = document.documentElement.clientHeight;
         return {
             x: Math.random() * (w / 1.3),
-            y: Math.random() * (h / 3) + (Y_PARTS * PUZZLE_HEIGHT / 2),
+            y: Math.random() * (h / 3) + (Y_PARTS * game.puzzleHeight / 2),
         };
     }
 
@@ -184,9 +184,37 @@
         /** @type {DSU} */
         dsu;
 
-        init() {
-            this.idToElement = rangeToObject(v => idToElement(v));
+        async init({puzzle}) {
+            if (puzzle) {
+                this._puzzleMetadata = await (await fetch(puzzle.metadata)).json();
+                this.puzzleId = puzzle.id;
+                this.filenamePrefix = `/data/${puzzle.id}/out-`;
+            }
+            this.durationMs = this._puzzleMetadata.duration_ms;
+            this.puzzleHeight = this._puzzleMetadata.puzzle_height;
+            this.puzzleWidth = this._puzzleMetadata.puzzle_width;
             this.dsu = new DSU(PUZZLE_COUNT);
+        }
+
+        relativeCorners (id) {
+            return this._puzzleMetadata.puzzles[id].relative_corners;
+        }
+
+        realPuzzleHeight (id) {
+            return this._puzzleMetadata.puzzles[id].height;
+        }
+
+        realPuzzleWidth (id) {
+            return this._puzzleMetadata.puzzles[id].width;
+        }
+
+        initElements () {
+            this.idToElement = rangeToObject(v => idToElement(v));
+            let _syncedTime = 0, _syncStep = 5000;
+            setInterval(() => {
+                VideoController.sync(_syncedTime / 1000);
+                _syncedTime = (_syncedTime + _syncStep) % game.durationMs;
+            }, _syncStep);
         }
     }
 
@@ -201,9 +229,11 @@
                     class="puzzle"
                 >
                     <video
-                        src="${FILENAME_PREFIX}${i}.${FILENAME_EXT}"
+                        src="${game.filenamePrefix}${i}.${FILENAME_EXT}"
                         autoplay
                         loop
+                        width="${game.realPuzzleWidth(i)}"
+                        height="${game.realPuzzleHeight(i)}"
                         class="p-video"
                     ></video>
                 </div>`
@@ -225,29 +255,49 @@
         }
     }
 
-    window.onload = function () {
+    window.onload = async function () {
         const field = document.getElementById('field');
 
         if (ASSEMBLING_ONLY_IN_FIELD) {
-            field.style.width = X_PARTS * PUZZLE_WIDTH + 'px';
-            field.style.height = Y_PARTS * PUZZLE_HEIGHT + 'px';
+            field.style.width = X_PARTS * game.puzzleWidth + 'px';
+            field.style.height = Y_PARTS * game.puzzleHeight + 'px';
         } else {
             field.remove();
         }
+
+        const puzzles = await API.getPuzzles();
+        const container = document.getElementById('puzzles');
+        let i = 0;
+        for (const puzzle of puzzles) {
+            const id = `puzzle-item-${i++}`;
+            container.innerHTML += `
+                <div class="col-sm-4 puzzle-item" id="${id}" onclick="start(this)">
+                    <img src="${puzzle.preview}" alt="test">
+                    <p style="font-size: 20px; text-align: center">${puzzle.name}</p>
+                </div>
+            `;
+            ELEMENTS_STORAGE[id] = {puzzle};
+        }
     }
 
-    function start() {
-        document.getElementById('start').remove();
+    async function start(element) {
+        const {puzzle} = ELEMENTS_STORAGE[element.id];
+        await game.init({puzzle});
         addPuzzles();
-        game.init();
-        VideoController.init();
+        game.initElements()
+        VideoController.sync();
         VideoController.play();
         timerController.init();
+        document.getElementById('timer').hidden = false;
+        document.getElementById('container').hidden = true;
+        const preview = document.getElementById('preview');
+        preview.src = puzzle.preview;
+        preview.hidden = false;
     }
 
     function repeat() {
-        game.init();
-        VideoController.init();
+        game.init({});
+        VideoController.sync();
         VideoController.play();
         timerController.init();
         document.getElementById('try-again').hidden = true;
@@ -255,6 +305,8 @@
         document.getElementById('input-for-name').hidden = true;
         document.getElementById('show-leaders').hidden = true;
         document.getElementById('leaders').hidden = true;
+        document.getElementById('timer').hidden = false;
+        document.getElementById('preview').hidden = false;
         shufflePuzzles();
     }
 
@@ -266,6 +318,7 @@
         document.getElementById('input-for-name').hidden = false;
         document.getElementById('show-leaders').hidden = false;
         document.getElementById('leaders').hidden = false;
+        document.getElementById('preview').hidden = true;
     }
 
     async function publishResult() {
@@ -281,7 +334,7 @@
         const url = await API.googleLogin();
         window.open(url);
         await new Promise(resolve => window.addEventListener('oauth-redirect', resolve));
-        await API.verifyGame(timerController.getTime(), name);
+        await API.verifyGame(timerController.getTime(), name, game.puzzleId);
         const addInLeaderboard = document.getElementById('add-in-leaderboard');
         addInLeaderboard.innerText = 'Результат зарегистрирован';
         addInLeaderboard.disabled = true;
@@ -292,7 +345,7 @@
         const formatTime = secs => {
             return `${format(Math.floor(secs / 60))}:${format(secs % 60)}`;
         }
-        const leaders = await API.getLeaders('test');
+        const leaders = await API.getLeaders(game.puzzleId);
         document.getElementById('leaders').innerText = leaders
             .map(leader => `${leader.name} - ${formatTime(leader.durationSecs)}`)
             .join('\n');
@@ -304,9 +357,9 @@
                 .forEach(video => routine(video));
         }
 
-        static init() {
+        static sync(currentTime = 0) {
             this.apply(video => {
-                video.currentTime = 0;
+                video.currentTime = currentTime;
             });
         }
 
@@ -318,8 +371,6 @@
             this.apply(video => video.play());
         }
     }
-
-    setInterval(() => VideoController.init(), 5000);
 
     function pxToNumber(px) {
         return Number(px.replace('px', ''));
@@ -335,28 +386,28 @@
 
     function leftTop(element) {
         const id = getId(element);
-        const corner = PUZZLE_METADATA.relative_corners[id].top_left || [0, 0];
+        const corner = game.relativeCorners(id).top_left || [0, 0];
         const pos = elementPosition(element);
         return [pos.x1 + corner[0], pos.y1 + corner[1]];
     }
 
     function leftBottom(element) {
         const id = getId(element);
-        const corner = PUZZLE_METADATA.relative_corners[id].bottom_left || [0, 0];
+        const corner = game.relativeCorners(id).bottom_left || [0, 0];
         const pos = elementPosition(element);
         return [pos.x1 + corner[0], pos.y1 + corner[1]];
     }
 
     function rightTop(element) {
         const id = getId(element);
-        const corner = PUZZLE_METADATA.relative_corners[id].top_right || [0, 0];
+        const corner = game.relativeCorners(id).top_right || [0, 0];
         const pos = elementPosition(element);
         return [pos.x1 + corner[0], pos.y1 + corner[1]];
     }
 
     function rightBottom(element) {
         const id = getId(element);
-        const corner = PUZZLE_METADATA.relative_corners[id].bottom_right || [0, 0];
+        const corner = game.relativeCorners(id).bottom_right || [0, 0];
         const pos = elementPosition(element);
         return [pos.x1 + corner[0], pos.y1 + corner[1]];
     }
@@ -423,16 +474,16 @@
 
     function normalize(first, group) {
         const firstPosition = getPosition(first);
-        const firstOffset = PUZZLE_METADATA.relative_corners[getId(first)].top_left;
+        const firstOffset = game.relativeCorners(getId(first)).top_left;
         for (const element of group.map(idToElement)) {
             const elementPosition = getPosition(element);
-            const currentOffset = PUZZLE_METADATA.relative_corners[getId(element)].top_left;
+            const currentOffset = game.relativeCorners(getId(element)).top_left;
 
             const dx = elementPosition[0] - firstPosition[0];
-            element.style.left = (pxToNumber(first.style.left) + firstOffset[0] + dx * PUZZLE_WIDTH - currentOffset[0]) + 'px';
+            element.style.left = (pxToNumber(first.style.left) + firstOffset[0] + dx * game.puzzleWidth - currentOffset[0]) + 'px';
 
             const dy = elementPosition[1] - firstPosition[1];
-            element.style.top = (pxToNumber(first.style.top) + firstOffset[1] + dy * PUZZLE_HEIGHT - currentOffset[1]) + 'px';
+            element.style.top = (pxToNumber(first.style.top) + firstOffset[1] + dy * game.puzzleHeight - currentOffset[1]) + 'px';
         }
     }
 
@@ -485,16 +536,16 @@
         game.dsu.unionSets(firstId, secondId);
     }
 
-    function __solve () {
+    function __solve() {
         let x = 0;
         let y = 0;
         for (const element of rangeDivs()) {
             element.style.left = x + 'px';
             element.style.top = y + 120 + 'px';
-            y += PUZZLE_HEIGHT;
-            if (y >= PUZZLE_HEIGHT * Y_PARTS) {
-                x += PUZZLE_WIDTH;
-                y %= PUZZLE_HEIGHT * Y_PARTS;
+            y += game.puzzleHeight;
+            if (y >= game.puzzleHeight * Y_PARTS) {
+                x += game.puzzleWidth;
+                y %= game.puzzleHeight * Y_PARTS;
             }
         }
     }

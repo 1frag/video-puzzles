@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import Header, Depends
 
-from api.domain.jwt import decode_access_token
+from api.domain.tokens import decode_access_token
 
 
 def _get_user_id(authorization: str = Header(...)) -> UUID:

@@ -13,7 +13,6 @@ import ffmpeg_utils
 from circle import Circle
 from custom_types import Point, Numeric
 
-
 WWW_DATA = './www/data'
 
 
@@ -28,10 +27,12 @@ class Settings:
     def __init__(
             self,
             input_file: str,
+            duration_ms: int,
             radius: int = 20,
     ):
         self.radius = radius
         self.input_file = input_file
+        self.duration_ms = duration_ms
 
 
 class Line:
@@ -54,6 +55,15 @@ class Line:
             canvas.create_line(x, y, x + 1, y + 1, fill='black')
         canvas.pack()
         root.mainloop()
+
+    def save(self, width: int, height: int, filename: str):
+        pixels = [[[0, 0, 0, 0] for _i in range(width)] for _j in range(height)]
+        for x, y in self.points:
+            pixels[y][x][3] = 255
+
+        with open(filename, 'wb') as f:
+            w = png.Writer(width, height, greyscale=False, alpha=True)
+            w.write(f, [itertools.chain(*row) for row in pixels])
 
     def reversed(self) -> 'Line':
         points = set()
@@ -101,14 +111,17 @@ class MaskAlgo:
         self.puzzle_height = self.height // self.parts_y
 
     @classmethod
-    def create(cls) -> 'MaskAlgo':
+    def create(cls, **kwargs) -> 'MaskAlgo':
+        input_file = kwargs.get('input_file', './1.mp4')
+        video_info = ffmpeg_utils.get_video_info(input_file)
         return MaskAlgo(
-            width=1280,
-            height=720,
+            width=video_info['width'],
+            height=video_info['height'],
             parts_x=8,
             parts_y=4,
             settings=Settings(
-                input_file='./1.mp4',
+                duration_ms=video_info['duration_ms'],
+                input_file=input_file,
                 radius=20,
             ),
         )
@@ -170,8 +183,8 @@ class MaskAlgo:
         return result
 
 
-def draw_masks_in_tk():  # for debugging
-    algo = MaskAlgo.create()
+def draw_masks_in_tk(input_file: str):  # for debugging
+    algo = MaskAlgo.create(input_file=input_file)
     result_line = Line.empty()
 
     for lines in algo.generate_vertical_lines():
@@ -246,6 +259,14 @@ class Border:
         point = (x, y) if with_offset else (x + self._min_x, y + self._min_y)
         return any(point in line.points for line in self.iteratee())
 
+    def to_line(self) -> Line:
+        points = set()
+        for line in self.iteratee():
+            for point in line.points:
+                x, y = point
+                points.add((x - self._min_x, y - self._min_y))
+        return Line(points)
+
     @property
     def relative_corners(self) -> dict[CornerKind, Point]:
         result = {}
@@ -255,14 +276,14 @@ class Border:
         return result
 
 
-def save_mask(border: Border) -> str:
+def save_mask(border: Border, version: int = 2) -> str:
     height = border.height
     width = border.width
 
     pixels = [[[255, 255, 255, 0] for _i in range(width)] for _j in range(height)]
 
     stack = collections.deque()
-    stack.append((int(height / 2), int(width / 2)))
+    stack.append((int(width / 2), int(height / 2)))
 
     while len(stack):
         x, y = stack.popleft()
@@ -285,15 +306,15 @@ def save_mask(border: Border) -> str:
                 stack.append((nx, ny))
                 pixels[ny][nx][3] = 255
 
-    mask_file = f'{WWW_DATA}/2/masks/{border.ident}.png'
+    mask_file = f'{WWW_DATA}/{version}/masks/{border.ident}.png'
     with open(mask_file, 'wb') as f:
         w = png.Writer(width, height, greyscale=False, alpha=True)
         w.write(f, [itertools.chain(*row) for row in pixels])
     return mask_file
 
 
-def save_cropped(border: Border, input_file: str) -> str:
-    output_file = f'{WWW_DATA}/2/cropped/{border.ident}.mp4'
+def save_cropped(border: Border, input_file: str, version: int) -> str:
+    output_file = f'{WWW_DATA}/{version}/cropped/{border.ident}.mp4'
     ffmpeg_utils.crop(
         width=border.width,
         height=border.height,
@@ -305,46 +326,99 @@ def save_cropped(border: Border, input_file: str) -> str:
     return output_file
 
 
-def save_masked(mask_file: str, cropped_video: str, border: Border):
+def save_masked(mask_file: str, cropped_video: str, border: Border, version: int):
     ffmpeg_utils.apply_mask(
         video_file=cropped_video,
         mask_file=mask_file,
-        output_file=f'{WWW_DATA}/2/masked/out-{border.number}.webm'
+        output_file=f'{WWW_DATA}/{version}/masked/out-{border.number}.webm'
     )
 
 
-def generate_borders():
-    algo = MaskAlgo.create()
+def create_border(
+        algo: MaskAlgo,
+        i: int,
+        j: int,
+        vertical_lines: list[list[Line]],
+        horizontal_lines: list[list[Line]],
+) -> Border:
+    return Border(
+        ident=f'{i}-{j}',
+        number=i * algo.parts_y + j + 1,
+        left=None if i == 0 else vertical_lines[i - 1][j],
+        right=None if i == algo.parts_x - 1 else vertical_lines[i][j],
+        top=None if j == 0 else horizontal_lines[j - 1][i].reversed(),
+        bottom=None if j == algo.parts_y - 1 else horizontal_lines[j][i].reversed(),
+        top_left_corner=(i * algo.puzzle_width, j * algo.puzzle_height),
+        puzzle_width=algo.puzzle_width,
+        puzzle_height=algo.puzzle_height,
+    )
+
+
+def generate_borders(input_file: str, version: int):
+    algo = MaskAlgo.create(input_file=input_file)
 
     vertical_lines = algo.generate_vertical_lines()
     horizontal_lines = algo.reversed().generate_vertical_lines()
 
     metadata = {
-        'relative_corners': {},
+        'puzzles': {},
+        'duration_ms': algo.settings.duration_ms,
+        'puzzle_width': algo.puzzle_width,
+        'puzzle_height': algo.puzzle_height,
     }
 
     for i in range(algo.parts_x):
         for j in range(algo.parts_y):
-            border = Border(
-                ident=f'{i}-{j}',
-                number=i * algo.parts_y + j + 1,
-                left=None if i == 0 else vertical_lines[i - 1][j],
-                right=None if i == algo.parts_x - 1 else vertical_lines[i][j],
-                top=None if j == 0 else horizontal_lines[j - 1][i].reversed(),
-                bottom=None if j == algo.parts_y - 1 else horizontal_lines[j][i].reversed(),
-                top_left_corner=(i * algo.puzzle_width, j * algo.puzzle_height),
-                puzzle_width=algo.puzzle_width,
-                puzzle_height=algo.puzzle_height,
+            border = create_border(
+                algo=algo,
+                i=i,
+                j=j,
+                vertical_lines=vertical_lines,
+                horizontal_lines=horizontal_lines,
             )
-            mask_file = save_mask(border)
-            cropped_video = save_cropped(border, algo.settings.input_file)
-            save_masked(mask_file, cropped_video, border)
-            metadata['relative_corners'][border.number] = border.relative_corners
+            mask_file = save_mask(border, version=version)
+            cropped_video = save_cropped(border, algo.settings.input_file, version=version)
+            save_masked(mask_file, cropped_video, border, version=version)
 
-    with open(f'{WWW_DATA}/2/puzzle-metadata.js', 'w') as fp:
-        fp.write('const PUZZLE_METADATA = ')
-        fp.write(json.dumps(metadata, indent=2))
+            metadata['puzzles'][border.number] = {
+                'relative_corners': border.relative_corners,
+                'width': border.width,
+                'height': border.height,
+            }
+
+    with open(f'{WWW_DATA}/{version}/puzzle-metadata.json', 'w') as fp:
+        json.dump(metadata, fp, indent=2)
+
+
+def create_forms():
+    algo = MaskAlgo.create(input_file='./1.mp4')
+
+    vertical_lines = algo.generate_vertical_lines()
+    horizontal_lines = algo.reversed().generate_vertical_lines()
+
+    for i in range(algo.parts_x):
+        for j in range(algo.parts_y):
+            border = create_border(
+                algo=algo,
+                i=i,
+                j=j,
+                vertical_lines=vertical_lines,
+                horizontal_lines=horizontal_lines,
+            )
+            border.to_line().save(
+                border.width + 1,
+                border.height + 1,
+                f'{WWW_DATA}/3/forms/{border.ident}.png',
+            )
 
 
 if __name__ == '__main__':
-    generate_borders()
+    # generate_borders(
+    #     input_file='./1.mp4',
+    #     version=2,
+    # )
+    generate_borders(
+        input_file='./nu_pogody.mp4',
+        version=4,
+    )
+    # draw_masks_in_tk('./nu_pogody.mp4')

@@ -1,5 +1,7 @@
 import os
 
+import ffmpeg
+
 
 def to_gif(input_file: str, output_file: str):
     os.popen(
@@ -25,3 +27,12 @@ def apply_mask(video_file: str, mask_file: str, output_file: str):
         f'ffmpeg -y -i {video_file}  -i {mask_file} -filter_complex "[1:v]alphaextract[alf];[0:v][alf]alphamerge" '
         f'-c:v vp9 -an {output_file}'
     ).read()
+
+
+def get_video_info(input_file: str):
+    video_stream = ffmpeg.probe(input_file, select_streams='v')['streams'][0]
+    return {
+        'duration_ms': int(float(video_stream['duration']) * 1000),
+        'width': video_stream['width'],
+        'height': video_stream['height'],
+    }

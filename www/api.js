@@ -7,18 +7,29 @@ class Api {
         return login.url;
     }
 
-    async verifyGame(durationSecs, name) {
-        await client.post('/game/verify', {
+    async verifyGame(durationSecs, name, puzzleId) {
+        await client.post(`/puzzles/${puzzleId}/verify`, {
             duration_secs: durationSecs,
             name,
         });
     }
 
     async getLeaders(puzzleId) {
-        const {leaders} = await client.get(`/game/leaderboard/${puzzleId}`);
+        const {leaders} = await client.get(`/puzzles/${puzzleId}/leaderboard`);
         return leaders.map(leader => ({
             name: leader.name,
             durationSecs: leader.duration_secs,
+        }));
+    }
+
+    async getPuzzles() {
+        const {puzzles} = await client.get(`/puzzles`);
+        return puzzles.map(puzzle => ({
+            id: puzzle.id,
+            name: puzzle.name,
+            preview: puzzle.preview,
+            metadata: puzzle.metadata,
+            durationMs: puzzle.duration_ms,
         }));
     }
 }
