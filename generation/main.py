@@ -422,18 +422,3 @@ if __name__ == '__main__':
     #     version=4,
     # )
     # draw_masks_in_tk('./nu_pogody.mp4')
-[
-  {
-    "AllowedOrigins": [
-      "r2.puzzle.ifrag-dev.ru",
-      "puzzle.ifrag-dev.ru"
-    ],
-    "AllowedMethods": [
-      "GET",
-      "PUT"
-    ],
-    "AllowedHeaders": [
-      "Content-Type"
-    ]
-  }
-]
