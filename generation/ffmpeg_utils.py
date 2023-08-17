@@ -36,3 +36,11 @@ def get_video_info(input_file: str):
         'width': video_stream['width'],
         'height': video_stream['height'],
     }
+
+
+def remove_audio(input_file: str, output_file: str):
+    os.popen(f'ffmpeg -i {input_file} -c copy -an {output_file}').read()
+
+
+def to_webm(input_file: str, output_file: str):
+    os.popen(f'ffmpeg -i {input_file} -c:v libvpx-vp9 -crf 30 -b:v 0 -b:a 128k -c:a libopus {output_file}').read()

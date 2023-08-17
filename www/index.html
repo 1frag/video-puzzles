@@ -297,7 +297,7 @@
         document.getElementById('timer').hidden = false;
         document.getElementById('container').hidden = true;
         const preview = document.getElementById('preview');
-        preview.src = puzzle.preview + '.mp4';
+        preview.src = `${CDN_DOMAIN}/${puzzle.preview}.webm`;
         preview.hidden = false;
     }
 
