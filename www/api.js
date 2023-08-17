@@ -29,7 +29,6 @@ class Api {
             name: puzzle.name,
             preview: puzzle.preview,
             metadata: puzzle.metadata,
-            durationMs: puzzle.duration_ms,
         }));
     }
 }

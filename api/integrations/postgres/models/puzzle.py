@@ -6,4 +6,3 @@ class Puzzle(BaseModel):
     name: str
     preview: str
     metadata: str
-    duration_ms: int

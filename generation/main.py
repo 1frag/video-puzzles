@@ -413,12 +413,27 @@ def create_forms():
 
 
 if __name__ == '__main__':
-    # generate_borders(
-    #     input_file='./1.mp4',
-    #     version=2,
-    # )
     generate_borders(
-        input_file='./nu_pogody.mp4',
-        version=4,
+        input_file='./1.mp4',
+        version=2,
     )
+    # generate_borders(
+    #     input_file='./nu_pogody.mp4',
+    #     version=4,
+    # )
     # draw_masks_in_tk('./nu_pogody.mp4')
+[
+  {
+    "AllowedOrigins": [
+      "r2.puzzle.ifrag-dev.ru",
+      "puzzle.ifrag-dev.ru"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT"
+    ],
+    "AllowedHeaders": [
+      "Content-Type"
+    ]
+  }
+]

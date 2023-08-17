@@ -140,6 +140,7 @@
 
     const FILENAME_EXT = 'webm';
     const ELEMENTS_STORAGE = {};
+    const CDN_DOMAIN = 'https://r2.puzzle.ifrag-dev.ru';
 
     let CURRENT_Z_INDEX = 0;
 
@@ -186,9 +187,9 @@
 
         async init({puzzle}) {
             if (puzzle) {
-                this._puzzleMetadata = await (await fetch(puzzle.metadata)).json();
+                this._puzzleMetadata = await (await fetch(`${CDN_DOMAIN}/${puzzle.metadata}`)).json();
                 this.puzzleId = puzzle.id;
-                this.filenamePrefix = `/data/${puzzle.id}/out-`;
+                this.filenamePrefix = `${CDN_DOMAIN}/data/${puzzle.id}/out-`;
             }
             this.durationMs = this._puzzleMetadata.duration_ms;
             this.puzzleHeight = this._puzzleMetadata.puzzle_height;
@@ -272,7 +273,7 @@
             const id = `puzzle-item-${i++}`;
             container.innerHTML += `
                 <div class="col-sm-4 puzzle-item" id="${id}" onclick="start(this)">
-                    <img src="${puzzle.preview}" alt="test">
+                    <img src="${CDN_DOMAIN}/${puzzle.preview}" alt="test">
                     <p style="font-size: 20px; text-align: center">${puzzle.name}</p>
                 </div>
             `;
