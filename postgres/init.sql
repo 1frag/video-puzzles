@@ -26,8 +26,10 @@ create table puzzles (
 delete from puzzles where true;
 insert into puzzles (id, preview, metadata, name)
 values
-    ('test', 'data/test/preview.gif', 'data/test/puzzle-metadata.json', 'Big Buck Bunny'),
-    ('nu_pogody', 'data/nu_pogody/preview.gif', 'data/nu_pogody/puzzle-metadata.json', 'Ну, погоди!');
+    ('test', 'data/test/preview.mp4', 'data/test/puzzle-metadata.json', 'Big Buck Bunny'),
+    ('nu_pogody', 'data/nu_pogody/preview.mp4', 'data/nu_pogody/puzzle-metadata.json', 'Ну, погоди!');
+
+select * from puzzles;
 
 drop table if exists user_results;
 create table user_results (

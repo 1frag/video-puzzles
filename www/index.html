@@ -16,12 +16,6 @@
             border: solid #9395971a 1px;
             background-color: #9395971a;
         }
-
-        #preview {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-        }
     </style>
     <link
             rel="stylesheet"
@@ -113,7 +107,18 @@
         hidden
 >
 </p>
-<img id="preview" hidden>
+<video
+    id="preview"
+    style="
+        height: 200px  !important;
+        position: absolute;
+        bottom: 0;
+        right: 0;
+    "
+    autoplay
+    loop
+    hidden
+></video>
 
 <script src="timer.js"></script>
 
@@ -273,7 +278,7 @@
             const id = `puzzle-item-${i++}`;
             container.innerHTML += `
                 <div class="col-sm-4 puzzle-item" id="${id}" onclick="start(this)">
-                    <img src="${CDN_DOMAIN}/${puzzle.preview}" alt="test">
+                    <img src="${CDN_DOMAIN}/${puzzle.preview}.gif" alt="test">
                     <p style="font-size: 20px; text-align: center">${puzzle.name}</p>
                 </div>
             `;
@@ -292,7 +297,7 @@
         document.getElementById('timer').hidden = false;
         document.getElementById('container').hidden = true;
         const preview = document.getElementById('preview');
-        preview.src = puzzle.preview;
+        preview.src = puzzle.preview + '.mp4';
         preview.hidden = false;
     }
 
