@@ -1,7 +1,10 @@
+const _dragStartMap = {};
+
 function dragElement(element) {
     let startX = 0, startY = 0, endX = 0, endY = 0;
     element.onmousedown = dragStart;
     element.ontouchstart = dragStart;
+    _dragStartMap[getId(element)] = dragStart;
 
     function dragStart(e) {
         e = e || window.event;
@@ -14,6 +17,26 @@ function dragElement(element) {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
         }
+
+        if (!isVisible(startX, startY, element)) {
+            let maxZIndex;
+            let bestElement;
+            for (const div of rangeDivs()) {
+                if (!isVisible(startX, startY, div)) {
+                    continue;
+                }
+                const curZIndex = Number(div.style.zIndex);
+                if (!maxZIndex || curZIndex > maxZIndex) {
+                    bestElement = div;
+                    maxZIndex = curZIndex;
+                }
+            }
+            if (!bestElement) {
+                return;
+            }
+            return _dragStartMap[getId(bestElement)](e);
+        }
+
         document.onmouseup = dragStop;
         document.ontouchend = dragStop;
         document.onmousemove = elementDrag;  // call whenever the cursor moves
@@ -64,5 +87,16 @@ function dragElement(element) {
         document.ontouchend = null;
         document.ontouchmove = null;
         checkIfAssembled(element);
+    }
+
+    function getRelatedTouch(startX, startY, element) {
+        const top = pxToNumber(element.style.top);
+        const left = pxToNumber(element.style.left);
+        return [startX - left, startY - top];
+    }
+
+    function isVisible(startX, startY, element) {
+        const relatedTouch = getRelatedTouch(startX, startY, element);
+        return game.borders.isVisible(getId(element), ...relatedTouch);
     }
 }

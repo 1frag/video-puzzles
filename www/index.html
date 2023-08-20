@@ -120,6 +120,8 @@
     hidden
 ></video>
 
+<canvas id="canvas" height="1000" width="1000"></canvas>
+
 <script src="timer.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
@@ -129,6 +131,7 @@
         integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
         crossorigin="anonymous"></script>
 <script src="dsu.js"></script>
+<script src="borders.js"></script>
 <script src="drag-n-drop.js"></script>
 <script src="http-client.js"></script>
 <script src="api.js"></script>
@@ -200,6 +203,8 @@
             this.puzzleHeight = this._puzzleMetadata.puzzle_height;
             this.puzzleWidth = this._puzzleMetadata.puzzle_width;
             this.dsu = new DSU(PUZZLE_COUNT);
+            this.borders = new BordersController();
+            this.borders.init();
         }
 
         relativeCorners (id) {
@@ -241,6 +246,7 @@
                         width="${game.realPuzzleWidth(i)}"
                         height="${game.realPuzzleHeight(i)}"
                         class="p-video"
+                        crossorigin="anonymous"
                     ></video>
                 </div>`
             );
